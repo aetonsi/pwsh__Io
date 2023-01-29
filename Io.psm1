@@ -1,7 +1,7 @@
 Add-Type -AssemblyName System.Windows.Forms
 
 # Filter example 'Documents (ms office only)|*.docx|SpreadSheets (ms office, openoffice)|*.xlsx,*.xls,*.ods'
-# TODO suppress open file dialogs
+# TODO suppress open file dialogs output
 function Get-OpenFileDialog(
   [string] $InitialDirectory = $PWD,
   [bool] $MultiSelect = $false,
