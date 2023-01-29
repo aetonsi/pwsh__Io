@@ -1,7 +1,7 @@
 Add-Type -AssemblyName System.Windows.Forms
 
 # Filter example 'Documents (ms office only)|*.docx|SpreadSheets (ms office, openoffice)|*.xlsx,*.xls,*.ods'
-# TODO suppress open dialogs output
+# TODO suppress ALL dialogs output
 function Get-OpenFileDialog(
   [string] $InitialDirectory = $PWD,
   [bool] $MultiSelect = $false,
@@ -23,7 +23,7 @@ function Get-OpenFileDialog(
     ShowReadOnly                 = $false
     AddExtension                 = $true
   }
-  $FileBrowser.ShowDialog()
+  $FileBrowser.ShowDialog() *>$null
   return $MultiSelect ? ([string[]] $FileBrowser.FileNames) : $FileBrowser.FileName
 }
 function Get-FolderBrowserDialog(
@@ -39,7 +39,7 @@ function Get-FolderBrowserDialog(
     RootFolder             = 'Desktop'
     ShowHiddenFiles        = $true
   }
-  $FolderBrowser.ShowDialog()
+  $FolderBrowser.ShowDialog() *>$null
   return $FolderBrowser.SelectedPath
 }
 
@@ -66,7 +66,7 @@ function Get-SaveFileDialog(
     SupportMultiDottedExtensions = $true
     AddExtension                 = $true
   }
-  $FileBrowser.ShowDialog()
+  $FileBrowser.ShowDialog() *>$null
   return $FileBrowser.FileName
 }
 
