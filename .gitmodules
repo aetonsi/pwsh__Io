@@ -1,0 +1,3 @@
+[submodule "pwsh__String"]
+	path = pwsh__String
+	url = git@github.com:aetonsi/pwsh__String.git
