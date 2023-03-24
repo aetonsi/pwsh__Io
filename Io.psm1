@@ -2,7 +2,8 @@
 
 using namespace Microsoft.PowerShell.Commands
 
-Import-Module "$PSScriptRoot/pwsh__String/String.psm1"
+Import-Module -Scope local "$PSScriptRoot/pwsh__Utils/Utils.psm1"
+Import-Module -Scope local "$PSScriptRoot/pwsh__String/String.psm1"
 
 
 function path_cleanup([parameter(ValueFromPipeline)][string] $path) {
@@ -10,9 +11,24 @@ function path_cleanup([parameter(ValueFromPipeline)][string] $path) {
   if ($result -eq '.') { $result = $PWD.Path } # resolve the dot
   if ($result -eq '..') { $result = "$($PWD.Path)/.." } # resolve the double dot
   if ($result -like '*:') { $result = "$path/" } # normalizes drives roots
-  $result = [System.IO.Path]::TrimEndingDirectorySeparator($result) # strips the final slash if present
+  # $result = [System.IO.Path]::TrimEndingDirectorySeparator($result) # strips the final slash if present # DOESNT WORK in powershell.exe
+  $result = $result.TrimEnd([System.IO.Path]::DirectorySeparatorChar) # strips the final slash if present
   return $result
 }
+
+function Read-FolderSize([Parameter(ValueFromPipeline, Mandatory)] $dir) {
+  return Get-ChildItem -Recurse $dir | Measure-Object -Property Length -Sum
+}
+
+# Depends on maddog's Recycle.exe from cmdutils package: http://www.maddogsw.com/cmdutils/
+function Send-ToRecycleBin ([Parameter(ValueFromPipeline)] $files, [switch] $force) {
+  $exe = Get-FirstApplication 'recycle' -AsPath
+  $f = $(if ($force) { '-f' } else { '' })
+  $paths = ($args | ForEach-Object { $_ | Get-QuotedString }) -join ' '
+  & $exe $f $paths
+}
+New-Alias -Option AllScope -Name recycle -Value Send-ToRecycleBin
+
 
 
 function Get-Dirname ([parameter(ValueFromPipeline)][string] $path) {
@@ -27,8 +43,7 @@ function Get-Basename ([parameter(ValueFromPipeline)][string] $path, [switch] $s
   $result = [System.IO.Path]::GetFullPath($path)
   if ($stripExtension) {
     $result = [System.IO.Path]::GetFileNameWithoutExtension($result)
-  }
-  else {
+  } else {
     $result = [System.IO.Path]::GetFileName($result)
   }
   return $result
@@ -75,9 +90,8 @@ function Get-TypedPath (
     if ($allowMultiple) {
       $paths = Get-TokenizedCommandLine $paths
     }
-    else {
-      $paths = [string[]] @($paths)
-    }
+    $paths = @($paths) # stop array enumeration
+
     $invalidPaths = @()
     for ($i = 0; $i -lt $paths.Length ; $i++) {
       if ($mustExist) {
@@ -85,8 +99,7 @@ function Get-TypedPath (
         if (! (Test-Path -PathType $pathType -Path ($paths[$i] | path_cleanup))) {
           $invalidPaths += $paths[$i]
         }
-      }
-      else {
+      } else {
         # manually check if dir or file (can only distinguish them by the trailing slash)
         if (($pathType -eq [TestPathType]::Leaf) -and ($paths[$i] -match '.*[/\\:]$')) {
           $invalidPaths += $paths[$i]
@@ -102,8 +115,7 @@ function Get-TypedPath (
   }
   if ($allowMultiple) {
     return , $paths
-  }
-  else {
+  } else {
     return $paths[0]
   }
 }
@@ -134,21 +146,30 @@ function New-TemporaryDirectory {
   return New-Item -ItemType Directory -Path (Join-Path $parent $name)
 }
 
+function build_anyfile_filter([bool] $AddAnyFileFilter, [string] $Filter) {
+  $filterStr = $Filter
+  if ($AddAnyFileFilter) {
+    if ($Filter) { $filterStr += '|' }
+    $filterStr += 'Any file|*'
+  }
+  return $filterStr
+}
+
 
 function Get-OpenFileDialog(
-  [string] $InitialDirectory = $PWD,
+  [string] $InitialDirectory = $PWD.Path,
   [bool] $MultiSelect = $false,
   [string] $Filter = '',
   [string] $Title = $null,
   [string] $defaultFilename = $null,
-  [bool] $addAnyFileFilter = $true
+  [bool] $AddAnyFileFilter = $true
 ) {
   if ($IsWindows) {
     Add-Type -AssemblyName System.Windows.Forms
     $FileBrowser = New-Object System.Windows.Forms.OpenFileDialog -Property @{
       InitialDirectory             = $InitialDirectory
       MultiSelect                  = $MultiSelect
-      Filter                       = $Filter + ($addAnyFileFilter ? (($Filter ? '|' : '') + 'Any file|*') : '')
+      Filter                       = build_anyfile_filter $AddAnyFileFilter $Filter
       Title                        = $Title
       FileName                     = $defaultFilename
       CheckFileExists              = $true
@@ -159,16 +180,18 @@ function Get-OpenFileDialog(
       AddExtension                 = $true
     }
     $FileBrowser.ShowDialog() *>$null
-    return $MultiSelect ? ([string[]] $FileBrowser.FileNames) : $FileBrowser.FileName
-  }
-  elseif ($IsLinux) {
+    if ($MultiSelect) { return $FileBrowser.FileNames }
+    else { return $FileBrowser.FileName }
+  } elseif ($IsLinux) {
     $path = Get-TypedPath -pathType Leaf -mustExist -allowMultiple:$MultiSelect
+  } else {
+    throw 'unsupported OS'
   }
   return $path
 }
 
 function Get-FolderBrowserDialog(
-  [string] $InitialDirectory = $PWD,
+  [string] $InitialDirectory = $PWD.Path,
   [bool] $ShowNewFolderButton = $true,
   [string] $Title = $null
 ) {
@@ -184,22 +207,23 @@ function Get-FolderBrowserDialog(
     }
     $FolderBrowser.ShowDialog() *>$null
     $path = $FolderBrowser.SelectedPath
-  }
-  elseif ($IsLinux) {
+  } elseif ($IsLinux) {
     $path = Get-TypedPath -pathType Container -mustExist
+  } else {
+    throw 'unsupported OS'
   }
   return $path
 }
 
 function Get-SaveFileDialog(
-  [string] $InitialDirectory = $PWD,
+  [string] $InitialDirectory = $PWD.Path,
   [bool] $OverwritePrompt = $true,
   [string] $Filter = '',
   [string] $Title = $null,
   [string] $defaultFilename = $null,
   [bool] $CheckWriteAccess = $false,
   [bool] $CreatePrompt = $false,
-  [bool] $addAnyFileFilter = $true
+  [bool] $AddAnyFileFilter = $true
 ) {
   if ($IsWindows) {
     Add-Type -AssemblyName System.Windows.Forms
@@ -208,7 +232,7 @@ function Get-SaveFileDialog(
       CheckWriteAccess             = $CheckWriteAccess
       OverwritePrompt              = $OverwritePrompt
       CreatePrompt                 = $CreatePrompt
-      Filter                       = $Filter + ($addAnyFileFilter ? (($Filter ? '|' : '') + 'Any file|*') : '')
+      Filter                       = build_anyfile_filter $AddAnyFileFilter $Filter
       Title                        = $Title
       FileName                     = $defaultFilename
       CheckPathExists              = $true
@@ -218,12 +242,13 @@ function Get-SaveFileDialog(
     }
     $FileBrowser.ShowDialog() *>$null
     $path = $FileBrowser.FileName
-  }
-  elseif ($IsLinux) {
+  } elseif ($IsLinux) {
     $path = Get-TypedPath -pathType Leaf
+  } else {
+    throw 'unsupported OS'
   }
   return $path
 }
 
 
-Export-ModuleMember -Function *-*
+Export-ModuleMember -Function *-* -Alias *
