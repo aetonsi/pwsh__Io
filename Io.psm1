@@ -8,11 +8,11 @@ Import-Module -Scope local "$PSScriptRoot/pwsh__String/String.psm1"
 
 function path_cleanup([parameter(ValueFromPipeline)][string] $path) {
   $result = $path | Get-UnquotedString # remove quotes if present
+  if ($IsWindows) { $result = $result -replace '/', '\' }
+  $result = $result.TrimEnd('\') # [System.IO.Path]::TrimEndingDirectorySeparator($result) DOESNT WORK in powershell.exe
   if ($result -eq '.') { $result = $PWD.Path } # resolve the dot
-  if ($result -eq '..') { $result = "$($PWD.Path)/.." } # resolve the double dot
-  if ($result -like '*:') { $result = "$path/" } # normalizes drives roots
-  # $result = [System.IO.Path]::TrimEndingDirectorySeparator($result) # strips the final slash if present # DOESNT WORK in powershell.exe
-  $result = $result.TrimEnd([System.IO.Path]::DirectorySeparatorChar) # strips the final slash if present
+  if ($result -eq '..') { $result = "$($PWD.Path)\.." } # resolve the double dot
+  if ($result -like '*:') { $result = "$path\" } # normalizes drives roots
   return $result
 }
 
@@ -30,17 +30,16 @@ function Send-ToRecycleBin ([Parameter(ValueFromPipeline)] $files, [switch] $for
 New-Alias -Option AllScope -Name recycle -Value Send-ToRecycleBin
 
 
-
-function Get-Dirname ([parameter(ValueFromPipeline)][string] $path) {
+function Get-Dirname ([parameter(ValueFromPipeline)][string] $path, [switch] $IdentityOnDriveRoot) {
   $result = $path | path_cleanup
   $result = [System.IO.Path]::GetDirectoryName($result)
-  if (! $result) { $result = [System.IO.Path]::GetFullPath($path) } # for drive roots getdirectoryname() would return null
-  $result = [System.IO.Path]::GetFullPath("$result/..")
-  return ($result | path_cleanup)
+  if (($null -eq $result) -and $IdentityOnDriveRoot) {
+    $result = [System.IO.Path]::GetFullPath(($path | path_cleanup))
+  }
+  return $result
 }
 function Get-Basename ([parameter(ValueFromPipeline)][string] $path, [switch] $stripExtension) {
   $result = $path | path_cleanup
-  $result = [System.IO.Path]::GetFullPath($path)
   if ($stripExtension) {
     $result = [System.IO.Path]::GetFileNameWithoutExtension($result)
   } else {
@@ -51,7 +50,7 @@ function Get-Basename ([parameter(ValueFromPipeline)][string] $path, [switch] $s
 function Get-Realpath ([parameter(ValueFromPipeline)][string] $path) {
   $result = $path | path_cleanup
   $result = [System.IO.Path]::GetFullPath($result)
-  return ($result | path_cleanup)
+  return $result
 }
 
 
