@@ -21,7 +21,40 @@ function Read-FolderSize([Parameter(ValueFromPipeline, Mandatory)] $Dir) {
 }
 
 
+Set-Alias -Name 'Get-HumanReadableSize' -Value Get-FriendlySize -Option AllScope
+function Get-FriendlySize([double] $Bytes, [int] $DecimalPrecision = 2, [switch] $ShortForm, [switch] $LocaleForm) {
 # adapted from: https://martin77s.wordpress.com/2017/05/20/display-friendly-file-sizes-in-powershell/
+  $SIprefixes = ',Kilo,Mega,Giga,Tera,Peta,Exa,Zetta,Yotta' -split ',' # TODO use global enum?
+  $prefix = ''
+  $convertedQuantity = $Bytes
+  $i = 1
+  while (($convertedQuantity -ge 1kb) -and ($i -in 0..($SIprefixes.Length - 1))) {
+    $convertedQuantity /= 1kb
+    $prefix = $SIprefixes[$i]
+    $i++
+  }
+
+  # $isInteger = $convertedQuantity -eq [System.Math]::Truncate($convertedQuantity)
+  $isInteger = 0 -eq ($convertedQuantity % 1)
+
+  $formatModifier = if ($LocaleForm) { 'N' } else { 'f' }
+  $decimalDigits = if ($isinteger) { 0 } else { $DecimalPrecision }
+  $measurementUnit = $prefix + 'Byte' + $(if ($convertedQuantity -eq 1) { '' }else { 's' })
+  if ($ShortForm) { $measurementUnit = $measurementUnit.ToCharArray().Where({ [System.Char]::IsUpper($_) }) }
+  $result = "{0:${formatModifier}${decimalDigits}} {1}" -f $convertedQuantity, $measurementUnit
+
+  return $result
+}
+
+
+function Get-RandomFileInFolder($Folder = '.', [switch] $ReturnFileNameOnly) {
+  $files = Get-ChildItem $Folder
+  $result = Get-Random -InputObject $files
+  if ($ReturnFileNameOnly) {
+    return $result.Name
+  } else {
+    return $result
+}
 }
 
 # Depends on maddog's Recycle.exe from cmdutils package: http://www.maddogsw.com/cmdutils/
