@@ -16,8 +16,12 @@ function path_cleanup([parameter(ValueFromPipeline)][string] $path) {
   return $result
 }
 
-function Read-FolderSize([Parameter(ValueFromPipeline, Mandatory)] $dir) {
-  return Get-ChildItem -Recurse $dir | Measure-Object -Property Length -Sum
+function Read-FolderSize([Parameter(ValueFromPipeline, Mandatory)] $Dir) {
+  return Get-ChildItem -Recurse -Force $Dir | Measure-Object -Property Length -Sum
+}
+
+
+# adapted from: https://martin77s.wordpress.com/2017/05/20/display-friendly-file-sizes-in-powershell/
 }
 
 # Depends on maddog's Recycle.exe from cmdutils package: http://www.maddogsw.com/cmdutils/
