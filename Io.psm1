@@ -81,14 +81,14 @@ function Send-ToRecycleBin (
     } catch [System.OperationCanceledException] { return $false }
     catch { Write-Error $_ }
 
-    return (Test-Path $Files)
+    return !(Test-Path $Files)
   } else {
     # Depends on maddog's Recycle.exe from cmdutils package: http://www.maddogsw.com/cmdutils/
     $exe = Get-FirstApplication 'recycle' -AsPath
     $f = $(if ($DeletePermanently) { '-f' } else { '' })
     $paths = ($Files | ForEach-Object { $_ | Get-QuotedString }) -join ' '
     & $exe $f $paths
-    return (Test-Path $Files)
+    return !(Test-Path $Files)
   }
 }
 New-Alias -Option AllScope -Name recycle -Value Send-ToRecycleBin
