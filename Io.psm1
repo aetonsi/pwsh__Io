@@ -23,7 +23,7 @@ function Read-FolderSize([Parameter(ValueFromPipeline, Mandatory)] $Dir) {
 
 Set-Alias -Name 'Get-HumanReadableSize' -Value Get-FriendlySize -Option AllScope
 function Get-FriendlySize([double] $Bytes, [int] $DecimalPrecision = 2, [switch] $ShortForm, [switch] $LocaleForm) {
-# adapted from: https://martin77s.wordpress.com/2017/05/20/display-friendly-file-sizes-in-powershell/
+  # adapted from: https://martin77s.wordpress.com/2017/05/20/display-friendly-file-sizes-in-powershell/
   $SIprefixes = ',Kilo,Mega,Giga,Tera,Peta,Exa,Zetta,Yotta' -split ',' # TODO use global enum?
   $prefix = ''
   $convertedQuantity = $Bytes
@@ -54,15 +54,42 @@ function Get-RandomFileInFolder($Folder = '.', [switch] $ReturnFileNameOnly) {
     return $result.Name
   } else {
     return $result
-}
+  }
 }
 
-# Depends on maddog's Recycle.exe from cmdutils package: http://www.maddogsw.com/cmdutils/
-function Send-ToRecycleBin ([Parameter(ValueFromPipeline)] $files, [switch] $force) {
-  $exe = Get-FirstApplication 'recycle' -AsPath
-  $f = $(if ($force) { '-f' } else { '' })
-  $paths = ($args | ForEach-Object { $_ | Get-QuotedString }) -join ' '
-  & $exe $f $paths
+
+function Send-ToRecycleBin (
+  [Parameter(ValueFromPipeline)] $Files,
+  [switch] $DeletePermanently,
+  [Alias('Force', 'NoDialogs')][switch] $DontAskForConfirmation
+) {
+  # TODO https://stackoverflow.com/questions/71868450/delete-multiple-files-with-single-windows-prompt-filesystem/71869244#71869244
+  if ($Files -isnot [array]) {
+    Add-Type -AssemblyName Microsoft.VisualBasic
+    $showUI = if ($DontAskForConfirmation) { [Microsoft.VisualBasic.FileIO.UIOption]::OnlyErrorDialogs }
+    else { [Microsoft.VisualBasic.FileIO.UIOption]::AllDialogs }
+    $recycle = if ($DeletePermanently) { [Microsoft.VisualBasic.FileIO.RecycleOption]::DeletePermanently }
+    else { [Microsoft.VisualBasic.FileIO.RecycleOption]::SendToRecycleBin }
+
+    try {
+      [Microsoft.VisualBasic.FileIO.FileSystem]::DeleteFile(
+        $Files,
+        $showUI,
+        $recycle,
+        [Microsoft.VisualBasic.FileIO.UICancelOption]::ThrowException
+      )
+    } catch [System.OperationCanceledException] { return $false }
+    catch { Write-Error $_ }
+
+    return (Test-Path $Files)
+  } else {
+    # Depends on maddog's Recycle.exe from cmdutils package: http://www.maddogsw.com/cmdutils/
+    $exe = Get-FirstApplication 'recycle' -AsPath
+    $f = $(if ($DeletePermanently) { '-f' } else { '' })
+    $paths = ($Files | ForEach-Object { $_ | Get-QuotedString }) -join ' '
+    & $exe $f $paths
+    return (Test-Path $Files)
+  }
 }
 New-Alias -Option AllScope -Name recycle -Value Send-ToRecycleBin
 
