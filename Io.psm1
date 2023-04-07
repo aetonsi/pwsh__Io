@@ -22,7 +22,7 @@ function Read-FolderSize([Parameter(ValueFromPipeline, Mandatory)] $Dir) {
 
 
 Set-Alias -Name 'Get-HumanReadableSize' -Value Get-FriendlySize -Option AllScope
-function Get-FriendlySize([double] $Bytes, [int] $DecimalPrecision = 2, [switch] $ShortForm, [switch] $LocaleForm) {
+function Get-FriendlySize([Parameter(ValueFromPipeline)][double] $Bytes, [int] $DecimalPrecision = 2, [switch] $ShortForm, [switch] $LocaleForm) {
   # adapted from: https://martin77s.wordpress.com/2017/05/20/display-friendly-file-sizes-in-powershell/
   $SIprefixes = ',Kilo,Mega,Giga,Tera,Peta,Exa,Zetta,Yotta' -split ',' # TODO use global enum?
   $prefix = ''
