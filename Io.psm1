@@ -16,8 +16,23 @@ function path_cleanup([parameter(ValueFromPipeline)][string] $path) {
   return $result
 }
 
-function Read-FolderSize([Parameter(ValueFromPipeline, Mandatory)] $Dir) {
-  return Get-ChildItem -Recurse -Force $Dir | Measure-Object -Property Length -Sum
+function Read-FolderSize([Parameter(ValueFromPipeline, Mandatory)] $Dir, [switch] $OnlyBytes) {
+  $ls = Get-ChildItem -Recurse -Force $Dir
+  $size = $ls | Measure-Object -Property Length -Sum
+  $dircount = $ls.count - $size.count
+  $filescount = $size.count
+
+  $result = if ($OnlyBytes) {
+    $size.Sum
+  } else {
+    [pscustomobject]@{
+      Directories       = $dircount
+      Files             = $filescount
+      BytesSize         = [string]($size.Sum) # cast to remove decimals
+      HumanReadableSize = $size.Sum | Get-HumanReadableSize
+    }
+  }
+  return $result
 }
 
 
