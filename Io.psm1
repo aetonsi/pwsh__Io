@@ -16,6 +16,21 @@ function path_cleanup([parameter(ValueFromPipeline)][string] $path) {
   return $result
 }
 
+
+Function Get-SafeFileName(
+  [Parameter(ValueFromPipeline = $true )][String] $Name,
+  [string] $Replacement = '_'
+) {
+  # https://stackoverflow.com/a/23067832
+  # https://stackoverflow.com/questions/23066783/how-to-strip-illegal-characters-before-trying-to-save-filenames#comment132875243_23067832
+
+  $invalidChars = [IO.Path]::GetInvalidFileNameChars() -join ''
+  return ($Name -replace "[$([RegEx]::Escape($invalidChars))]", $Replacement)
+}
+Set-Alias -Option AllScope -Name 'Remove-InvalidFileNameCharacters' -Value Get-SafeFileName
+
+
+
 function Read-FolderSize([Parameter(ValueFromPipeline, Mandatory)] $Dir, [switch] $OnlyBytes) {
   $ls = Get-ChildItem -Recurse -Force $Dir
   $size = $ls | Measure-Object -Property Length -Sum
