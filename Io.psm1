@@ -5,6 +5,8 @@ using namespace Microsoft.PowerShell.Commands
 Import-Module -Scope local "$PSScriptRoot/pwsh__Utils/Utils.psm1"
 Import-Module -Scope local "$PSScriptRoot/pwsh__String/String.psm1"
 
+Add-Type -Path "$PSScriptRoot/FileOperationAPIWrapper.cs"
+
 
 function path_cleanup([parameter(ValueFromPipeline)][string] $path) {
   $result = $path | Get-UnquotedString # remove quotes if present
@@ -88,40 +90,44 @@ function Get-RandomFileInFolder($Folder = '.', [switch] $ReturnFileNameOnly) {
 }
 
 
-function Send-ToRecycleBin (
+function Move-ToRecycleBin (
   [Parameter(ValueFromPipeline)] $Files,
-  [switch] $DeletePermanently,
-  [Alias('Force', 'NoDialogs')][switch] $DontAskForConfirmation
+  [Alias('Force', 'Permanently', 'Forever')][switch] $DeletePermanently,
+  [switch] $NoConfirmation,
+  [switch] $NoDialogs
 ) {
-  # TODO https://stackoverflow.com/questions/71868450/delete-multiple-files-with-single-windows-prompt-filesystem/71869244#71869244
-  if ($Files -isnot [array]) {
-    Add-Type -AssemblyName Microsoft.VisualBasic
-    $showUI = if ($DontAskForConfirmation) { [Microsoft.VisualBasic.FileIO.UIOption]::OnlyErrorDialogs }
-    else { [Microsoft.VisualBasic.FileIO.UIOption]::AllDialogs }
-    $recycle = if ($DeletePermanently) { [Microsoft.VisualBasic.FileIO.RecycleOption]::DeletePermanently }
-    else { [Microsoft.VisualBasic.FileIO.RecycleOption]::SendToRecycleBin }
+  if ($local:Error) { $local:Error.clear() }
 
-    try {
-      [Microsoft.VisualBasic.FileIO.FileSystem]::DeleteFile(
-        $Files,
-        $showUI,
-        $recycle,
-        [Microsoft.VisualBasic.FileIO.UICancelOption]::ThrowException
-      )
-    } catch [System.OperationCanceledException] { return $false }
-    catch { Write-Error $_ }
+  $Files = Get-Item $Files -ErrorAction Continue
 
-    return !(Test-Path $Files)
-  } else {
+  return [Aetonsi.FileOperationAPIWrapper]::SendToRecycleBin(
+    [string[]] $Files,
+    $DeletePermanently,
+    $NoConfirmation,
+    !$NoDialogs
+  )
+
+  <# if ($DeletePermanently -and !$AskForConfirmation) {
+    $Files | ForEach-Object { Remove-Item -Force -Recurse -ErrorAction Continue }
+  } #>
+  <# if ($exe = (Get-Command -CommandType Application -Name 'recycle').Path) {
     # Depends on maddog's Recycle.exe from cmdutils package: http://www.maddogsw.com/cmdutils/
-    $exe = Get-FirstApplication 'recycle' -AsPath
-    $f = $(if ($DeletePermanently) { '-f' } else { '' })
+    $f = if ($DeletePermanently) { '-f' } else { '' }
     $paths = ($Files | ForEach-Object { $_ | Get-QuotedString }) -join ' '
     & $exe $f $paths
-    return !(Test-Path $Files)
-  }
+  } #>
+  <# Add-Type -AssemblyName Microsoft.VisualBasic
+  $showUI = if (!$AskForConfirmation) { [Microsoft.VisualBasic.FileIO.UIOption]::OnlyErrorDialogs } else { [Microsoft.VisualBasic.FileIO.UIOption]::AllDialogs }
+  $recycle = if ($DeletePermanently) { [Microsoft.VisualBasic.FileIO.RecycleOption]::DeletePermanently } else { [Microsoft.VisualBasic.FileIO.RecycleOption]::SendToRecycleBin }
+  [Microsoft.VisualBasic.FileIO.FileSystem]::DeleteFile(
+    $Files,
+    $showUI,
+    $recycle,
+    [Microsoft.VisualBasic.FileIO.UICancelOption]::DoNothing
+  ) #>
+  <# return (($local:Error.count -eq 0) -and !(Test-Path $Files)) #>
 }
-New-Alias -Option AllScope -Name recycle -Value Send-ToRecycleBin
+New-Alias -Option AllScope -Name 'Send-ToRecycleBin' -Value Move-ToRecycleBin
 
 
 function Get-Dirname ([parameter(ValueFromPipeline)][string] $path, [switch] $IdentityOnDriveRoot) {
