@@ -260,7 +260,7 @@ function Get-OpenFileDialog(
   [bool] $MultiSelect = $false,
   [string] $Filter = '',
   [string] $Title = $null,
-  [string] $defaultFilename = $null,
+  [string] $DefaultFilename = $null,
   [bool] $AddAnyFileFilter = $true
 ) {
   if ($IsWindows) {
@@ -270,7 +270,7 @@ function Get-OpenFileDialog(
       MultiSelect                  = $MultiSelect
       Filter                       = build_anyfile_filter $AddAnyFileFilter $Filter
       Title                        = $Title
-      FileName                     = $defaultFilename
+      FileName                     = $DefaultFilename
       CheckFileExists              = $true
       CheckPathExists              = $true
       ShowHiddenFiles              = $true
@@ -319,7 +319,7 @@ function Get-SaveFileDialog(
   [bool] $OverwritePrompt = $true,
   [string] $Filter = '',
   [string] $Title = $null,
-  [string] $defaultFilename = $null,
+  [string] $DefaultFilename = $null,
   [bool] $CheckWriteAccess = $false,
   [bool] $CreatePrompt = $false,
   [bool] $AddAnyFileFilter = $true
@@ -333,7 +333,7 @@ function Get-SaveFileDialog(
       CreatePrompt                 = $CreatePrompt
       Filter                       = build_anyfile_filter $AddAnyFileFilter $Filter
       Title                        = $Title
-      FileName                     = $defaultFilename
+      FileName                     = $DefaultFilename
       CheckPathExists              = $true
       ShowHiddenFiles              = $true
       SupportMultiDottedExtensions = $true
