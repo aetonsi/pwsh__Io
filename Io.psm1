@@ -29,7 +29,7 @@ Function Get-SafeFileName(
   $invalidChars = [IO.Path]::GetInvalidFileNameChars() -join ''
   return ($Name -replace "[$([RegEx]::Escape($invalidChars))]", $Replacement)
 }
-Set-Alias -Option AllScope -Name 'Remove-InvalidFileNameCharacters' -Value Get-SafeFileName
+Set-Alias -Option AllScope -Scope 'Global' -Force -Name 'Remove-InvalidFileNameCharacters' -Value Get-SafeFileName
 
 
 
@@ -53,7 +53,6 @@ function Read-FolderSize([Parameter(ValueFromPipeline, Mandatory)] $Dir, [switch
 }
 
 
-Set-Alias -Name 'Get-HumanReadableSize' -Value Get-FriendlySize -Option AllScope
 function Get-FriendlySize([Parameter(ValueFromPipeline)][double] $Bytes, [int] $DecimalPrecision = 2, [switch] $ShortForm, [switch] $LocaleForm) {
   # adapted from: https://martin77s.wordpress.com/2017/05/20/display-friendly-file-sizes-in-powershell/
   $SIprefixes = ',Kilo,Mega,Giga,Tera,Peta,Exa,Zetta,Yotta' -split ',' # TODO use global enum?
@@ -77,6 +76,7 @@ function Get-FriendlySize([Parameter(ValueFromPipeline)][double] $Bytes, [int] $
 
   return $result
 }
+Set-Alias -Option AllScope -Scope 'Global' -Force -Name 'Get-HumanReadableSize' -Value Get-FriendlySize
 
 
 function Get-RandomFileInFolder($Folder = '.', [switch] $ReturnFileNameOnly) {
