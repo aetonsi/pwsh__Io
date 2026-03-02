@@ -98,7 +98,7 @@ function Move-ToRecycleBin (
 ) {
   if ($local:Error) { $local:Error.clear() }
 
-  $Files = Get-Item $Files -ErrorAction Continue
+  $Files = Get-Item -Force $Files -ErrorAction Continue
 
   return [Aetonsi.FileOperationAPIWrapper]::SendToRecycleBin(
     [string[]] $Files,
@@ -224,7 +224,7 @@ function Test-IsDir(
   [Parameter(Mandatory = $false)][switch] $mustExist = $false
 ) {
   if ($mustExist -and (!(Test-Path $dir))) { throw "$dir does not exist" }
-  # return (Get-Item $dir) -is [System.IO.DirectoryInfo]
+  # return (Get-Item -Force $dir) -is [System.IO.DirectoryInfo]
   return Test-Path $dir -PathType Container
 }
 
@@ -233,7 +233,7 @@ function Test-IsFile(
   [Parameter(Mandatory = $false)][switch] $mustExist = $false
 ) {
   if ($mustExist -and (!(Test-Path $file))) { throw "$file does not exist" }
-  # return (Get-Item $file) -is [System.IO.FileInfo]
+  # return (Get-Item -Force $file) -is [System.IO.FileInfo]
   return Test-Path $file -PathType Leaf
 }
 
